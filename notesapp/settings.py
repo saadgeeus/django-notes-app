@@ -89,7 +89,7 @@ WSGI_APPLICATION = 'notesapp.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',  # i do changing in DataBases...
+        'ENGINE': 'django.db.backends.sqlite3',  # i do changing in DataBases.!!
         'NAME': BASE_DIR / "db.sqlite3",
     }
 }
