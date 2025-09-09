@@ -1,0 +1,62 @@
+pipeline {
+    agent { label "SaaD" }
+
+    environment {
+        APP_NAME = "notes-app"
+        IMAGE_TAG = "latest"          // unique image tag per build
+        CONTAINER_NAME = "notes-app-container"
+    }
+
+    stages {
+        stage("Code") {
+            steps {
+                echo "Cloning the repository..."
+                git url: "https://github.com/saadgeeus/django-notes-app.git", branch: "main"
+                echo "Repository cloned successfully."
+            }
+        }
+
+        stage("Build") {
+            steps {
+                echo "Building Docker image..."
+                sh "docker build -t ${APP_NAME}:${IMAGE_TAG} ."
+                echo "Docker image built successfully: ${APP_NAME}:${IMAGE_TAG}"
+            }
+        }
+
+        stage("Push Image To DockerHub") {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: "dockerHubCred",
+                    usernameVariable: "dockerHubUser",
+                    passwordVariable: "dockerHubPass"
+                )]) {
+                    sh 'echo $dockerHubPass | docker login -u $dockerHubUser --password-stdin'
+                    sh "docker tag ${APP_NAME}:${IMAGE_TAG} ${dockerHubUser}/${APP_NAME}:${IMAGE_TAG}"
+                    sh "docker push ${dockerHubUser}/${APP_NAME}:${IMAGE_TAG}"
+                }
+            }
+        }
+
+        stage("Deploy") {
+            steps {
+                echo "Deploying container..."
+                sh '''
+                # Stop and remove old container if running
+                docker rm -f ${CONTAINER_NAME} || true
+
+                # Run new container with latest image
+                docker run -d --name ${CONTAINER_NAME} -p 8000:8000 ${APP_NAME}:latest
+                '''
+                echo "App deployed successfully via container."
+            }
+        }
+    }
+
+    post {
+        always {
+            echo "Cleaning up dangling images..."
+            sh "docker image prune -f || true"
+        }
+    }
+}
